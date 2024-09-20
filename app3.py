@@ -7,7 +7,6 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from dotenv import load_dotenv
 from io import BytesIO
-import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -16,7 +15,7 @@ load_dotenv()
 azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
 azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 azure_api_type = os.getenv("OPENAI_API_TYPE")
-azure_api_version = os.getenv("OPENAI_API_VERSION")
+azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION")
 
 # Set the environment variables
 os.environ["AZURE_OPENAI_API_KEY"] = azure_api_key
@@ -67,7 +66,7 @@ def main():
             
             # Define prompt for chunk summarization
             summary_prompt_template = """
-            Please provide a detailed summary of the following text, focusing on the main events and themes without using direct quotes or specific descriptions:
+            Summarize the following text in clear and concise terms:
             {chunk}
             """
             prompt = PromptTemplate.from_template(template=summary_prompt_template)
