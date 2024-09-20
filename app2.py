@@ -1,7 +1,4 @@
 import os
-import re
-import numpy as np
-import faiss
 import PyPDF2
 import streamlit as st
 from langchain_community.vectorstores import FAISS
@@ -10,7 +7,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from dotenv import load_dotenv
 from io import BytesIO
-from tqdm import tqdm
+import numpy as np
+import faiss
 
 load_dotenv()
 
@@ -26,14 +24,6 @@ os.environ["AZURE_OPENAI_ENDPOINT"] = azure_endpoint
 os.environ["OPENAI_API_TYPE"] = azure_api_type
 os.environ["OPENAI_API_VERSION"] = azure_api_version
 
-# Function to clean text
-def clean_text(text):
-    cleaned_text = re.sub(r' +', ' ', cleaned_text)
-    cleaned_text = re.sub(r'[\x00-\x1F]', '', cleaned_text)
-    cleaned_text = cleaned_text.replace('\n', ' ')
-    cleaned_text = re.sub(r'\s*-\s*', '', cleaned_text)
-    return cleaned_text
-
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_path):
     all_text = ""
@@ -48,19 +38,20 @@ def extract_text_from_pdf(pdf_path):
 
 # Streamlit app
 def main():
-    st.title("PDF Summarizer with Clustering")
+    st.title("PDF Summarizer")
 
     # Upload a PDF
     uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
 
     if uploaded_file:
+        # Process the PDF and split into chunks only once
         with st.spinner('Processing ...'):
             pdf_path = "temp_uploaded_pdf.pdf"
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
+            # Extract text from the PDF
             all_text, total_pages = extract_text_from_pdf(pdf_path)
-            cleaned_text = clean_text(all_text)
 
             # Split text into chunks
             text_splitter = RecursiveCharacterTextSplitter(
@@ -69,50 +60,37 @@ def main():
                 length_function=len,
                 separators=['\n', '\n\n', ' ', '']
             )
-            chunks = text_splitter.split_text(text=cleaned_text)
+            chunks = text_splitter.split_text(text=all_text)
 
-            # Initialize embeddings
-            embeddings = AzureOpenAIEmbeddings(
-                model="text-embedding-3-large",
-                deployment="TextEmbeddingLarge",
-                api_version=azure_api_version,
-                azure_endpoint=azure_endpoint,
-                openai_api_key=azure_api_key
-            )
-
-            # Create document embeddings
-            doc_embeddings = [embeddings.embed(chunk) for chunk in chunks]
-            array = np.array(doc_embeddings).astype('float32')
-
-            # Clustering with FAISS
-            num_clusters = 50
-            dimension = array.shape[1]
-            kmeans = faiss.Kmeans(dimension, num_clusters, niter=20, verbose=True)
-            kmeans.train(array)
-
-            # Create a new index for the original dataset
-            index = faiss.IndexFlatL2(dimension)
-            index.add(array)
-
-            # Fetch centroids
-            D, I = index.search(kmeans.centroids, 1)
-
-            # Summarization chain
+            # Set up LLM for summarization
             llm = AzureChatOpenAI(deployment_name="gpt-4o-mini")
+            
+            # Define prompt for chunk summarization
             summary_prompt_template = """
             Summarize the following text comprehensively:
             {chunk}
             """
             prompt = PromptTemplate.from_template(template=summary_prompt_template)
 
-            final_summary = ""
-            for idx in tqdm(I.flatten(), desc="Processing documents"):
-                chunk = chunks[idx]
+            # Summarize each chunk
+            chunk_summaries = []
+            for chunk in chunks:
                 formatted_prompt = prompt.format(chunk=chunk)
-                chunk_summary = llm.invoke(formatted_prompt)
-                final_summary += chunk_summary + "\n"
+                chunk_summary = llm.invoke(formatted_prompt)  # Use LLM's invoke method
+                chunk_summaries.append(chunk_summary)
 
+            # Combine chunk summaries into a final summary
             st.subheader("Final Summary of the Document")
+
+            final_summary_prompt_template = """
+            Combine the following summaries into a comprehensive summary of the entire document:
+            {chunk_summaries}
+            """
+            final_summary_prompt = final_summary_prompt_template.format(
+                chunk_summaries="\n".join(chunk_summaries)
+            )
+            final_summary = llm.invoke(final_summary_prompt)
+
             st.write(final_summary)
 
             # Download summary as .txt
