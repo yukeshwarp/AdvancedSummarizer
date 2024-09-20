@@ -7,21 +7,19 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
 from dotenv import load_dotenv
 from io import BytesIO
-
-# Load environment variables from .env file
 load_dotenv()
 
 # Get Azure OpenAI environment variables from .env file
 azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
 azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 azure_api_type = os.getenv("OPENAI_API_TYPE")
-azure_api_version = os.getenv("AZURE_API_VERSION")
+azure_api_version = os.getenv("OPENAI_API_VERSION")
 
 # Set the environment variables
 os.environ["AZURE_OPENAI_API_KEY"] = azure_api_key
 os.environ["AZURE_OPENAI_ENDPOINT"] = azure_endpoint
 os.environ["OPENAI_API_TYPE"] = azure_api_type
-os.environ["AZURE_API_VERSION"] = azure_api_version
+os.environ["OPENAI_API_VERSION"] = azure_api_version
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_path):
@@ -75,7 +73,7 @@ def main():
             chunk_summaries = []
             for chunk in chunks:
                 formatted_prompt = prompt.format(chunk=chunk)
-                chunk_summary = llm.predict(formatted_prompt)  # Use LLM's predict method
+                chunk_summary = llm.invoke(formatted_prompt)  # Use LLM's predict method
                 chunk_summaries.append(chunk_summary)
 
             # Combine chunk summaries into a final summary
@@ -88,7 +86,7 @@ def main():
             final_summary_prompt = final_summary_prompt_template.format(
                 chunk_summaries="\n".join(chunk_summaries)
             )
-            final_summary = llm.predict(final_summary_prompt)
+            final_summary = llm.invoke(final_summary_prompt)
 
             st.write(final_summary)
 
