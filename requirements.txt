@@ -6,3 +6,7 @@ langchain-text-splitters
 langchain-core
 langchain-openai
 python-dotenv
+numpy
+faiss-cpu
+tqdm
+
