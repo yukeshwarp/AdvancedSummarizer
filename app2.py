@@ -44,7 +44,6 @@ def main():
     uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
 
     if uploaded_file:
-        # Process the PDF and split into chunks only once
         with st.spinner('Processing ...'):
             pdf_path = "temp_uploaded_pdf.pdf"
             with open(pdf_path, "wb") as f:
@@ -76,8 +75,8 @@ def main():
             chunk_summaries = []
             for chunk in chunks:
                 formatted_prompt = prompt.format(chunk=chunk)
-                chunk_summary = llm.invoke(formatted_prompt)  # Use LLM's invoke method
-                chunk_summaries.append(chunk_summary)
+                chunk_summary = llm.invoke(formatted_prompt)
+                chunk_summaries.append(chunk_summary.content)  # Access the content property
 
             # Combine chunk summaries into a final summary
             st.subheader("Final Summary of the Document")
@@ -89,7 +88,7 @@ def main():
             final_summary_prompt = final_summary_prompt_template.format(
                 chunk_summaries="\n".join(chunk_summaries)
             )
-            final_summary = llm.invoke(final_summary_prompt)
+            final_summary = llm.invoke(final_summary_prompt).content  # Access content here
 
             st.write(final_summary)
 
